@@ -10,17 +10,20 @@ import {
   FaTimesCircle,
 } from 'react-icons/fa'
 import Tooltip from '@reach/tooltip'
-import { useQuery, useMutation, queryCache } from 'react-query'
-import { client } from 'utils/api-client'
 import {useAsync} from 'utils/hooks'
 import * as colors from 'styles/colors'
 import {CircleButton, Spinner} from './lib'
+import { useListItem, useUpdateListItem, useRemoveListItem, useCreateListItem } from 'utils/list-items'
 
 function TooltipButton({label, highlight, onClick, icon, ...rest}) {
-  const {isLoading, isError, error, run} = useAsync()
+  const {isLoading, isError, error, run, reset} = useAsync()
 
   function handleClick() {
-    run(onClick())
+    if (isError) {
+      reset()
+    } else {
+      run(onClick())
+    }
   }
 
   return (
@@ -48,31 +51,13 @@ function TooltipButton({label, highlight, onClick, icon, ...rest}) {
 }
 
 function StatusButtons({user, book}) {
-  const {data: listItems} = useQuery({
-    queryKey: ['list-items'],
-    queryFn: () => client('list-items', {token: user.token}).then(data => {return data.listItems})
-    
-  })
-  
-  const listItem = listItems?.find(item => item.bookId === book.id) ?? null
+  const listItem = useListItem(user, book.id);
 
-  const [update] = useMutation(
-    ({id: listItemId, finishDate}) => 
-      client(`list-items/${listItemId}`, {token: user.token, data: {id: listItemId, finishDate}, method: 'PUT'}),
-    {onSettled: () => queryCache.invalidateQueries('list-items')}
-  )
+  const [update] = useUpdateListItem(user, {throwOnError: true})
 
-  const [remove] = useMutation(
-    ({id: listItemId}) => 
-      client(`list-items/${listItemId}`, {token: user.token, data: {id: listItemId}, method: 'DELETE'}),
-    {onSettled: () => queryCache.invalidateQueries('list-items')}
-  )
+  const [remove] = useRemoveListItem(user, {throwOnError: true})
 
-  const [create] = useMutation(
-    ({bookId}) => 
-       client(`list-items`, {token: user.token, data: {bookId}, method: 'POST'}),
-    {onSettled: () => queryCache.invalidateQueries('list-items')}
-  )
+  const [create] = useCreateListItem(user, {throwOnError: true})
 
   return (
     <React.Fragment>
